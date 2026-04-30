@@ -196,12 +196,16 @@ private:
   INA228_busConvTime_t config_busConvTime;
   INA228_shuntConvTime_t config_shuntConvTime;
   INA228_mode_t config_mode;
+  bool config_range;
 
 	bool setMaskEnable(uint16_t mask);
 	uint16_t getMaskEnable(void);
 
 	bool writeRegister16(uint8_t reg, uint16_t val);
 	int16_t readRegister16(uint8_t reg);
+
+	bool writeRegister24(uint8_t reg, uint32_t val);
+	int32_t readRegister24(uint8_t reg);
 };
 
 #endif

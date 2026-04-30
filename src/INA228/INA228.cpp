@@ -51,6 +51,7 @@ bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, 
   config_busConvTime = busConvTime;
   config_shuntConvTime = shuntConvTime;
   config_mode = mode;
+  config_range = range;
 
     uint16_t config = 0;
 
@@ -187,7 +188,12 @@ float INA228::readShuntVoltage(void)
 
     voltage = readRegister16(INA228_SHUNT_VOLTAGE);
 
-    return (voltage * 0.0000025);
+    if (config_range)
+    {
+        return (voltage * 0.000000078125);
+    } else {
+        return (voltage * 0.0000003125);
+    }
 }
 
 float INA228::readBusVoltage(void)
@@ -365,5 +371,38 @@ bool INA228::writeRegister16(uint8_t reg, uint16_t val)
     wire.write(reg);
     wire.write((uint8_t)val);
     wire.write(vla);
+    return wire.endTransmission() != 0xff;
+}
+
+int32_t INA228::readRegister24(uint8_t reg)
+{
+    int32_t value;
+
+    wire.beginTransmission(inaAddress);
+    wire.write(reg);
+    wire.endTransmission();
+
+    wire.requestFrom(inaAddress, 3);
+    uint8_t val1 = wire.read();
+    uint8_t val2 = wire.read();
+    uint8_t val3 = wire.read();
+    value = val1 << 16 | val2 << 8 | val3;
+
+    return value;
+}
+
+bool INA228::writeRegister24(uint8_t reg, uint32_t val)
+{
+    uint8_t val2;
+    val2 = (uint8_t)(val >> 8);
+    uint8_t val3;
+    val3 = (uint8_t)(val);
+    val >>= 16;
+
+    wire.beginTransmission(inaAddress);
+    wire.write(reg);
+    wire.write((uint8_t)val);
+    wire.write(val2);
+    wire.write(val3);
     return wire.endTransmission() != 0xff;
 }
