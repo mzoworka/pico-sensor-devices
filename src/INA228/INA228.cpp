@@ -40,11 +40,12 @@ bool INA228::begin(i2c_inst_t* i2c, uint8_t address)
         INA228_AVERAGES_1,
         INA228_BUS_CONV_TIME_1052US,
         INA228_SHUNT_CONV_TIME_1052US,
-        INA228_MODE_SHUNT_BUS_CONT
+        INA228_MODE_SHUNT_BUS_CONT,
+        false
     );
 }
 
-bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, INA228_shuntConvTime_t shuntConvTime, INA228_mode_t mode)
+bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, INA228_shuntConvTime_t shuntConvTime, INA228_mode_t mode, bool range)
 {
   config_avg = avg;
   config_busConvTime = busConvTime;
@@ -53,16 +54,19 @@ bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, 
 
     uint16_t config = 0;
 
-    config |= (mode << 12 | busConvTime << 9 | shuntConvTime << 6 | avg);
+    config = range ? 1<<4 : 0;
+    writeRegister16(INA228_CONFIG, config);
 
-    vBusMax = 36;
+    config = (mode << 12 | busConvTime << 9 | shuntConvTime << 6 | avg);
+
+    vBusMax = 85;
     vShuntMax = 0.015f;
 
     return writeRegister16(INA228_ADC_CONFIG, config);
 }
 
 bool INA228::powerUp(){
-  bool result = configure(config_avg, config_busConvTime, config_shuntConvTime, config_mode);
+  bool result = configure(config_avg, config_busConvTime, config_shuntConvTime, config_mode, false);
   sleep_us(40); // startup time.
   return result;
 }
@@ -88,8 +92,8 @@ bool INA228::triggerAndWait(INA228_mode_t mode){
   config_mode = mode;
   uint16_t config = (mode << 12 | config_busConvTime << 9 | config_shuntConvTime << 6 | config_avg);
 
-  vBusMax = 36;
-  vShuntMax = 0.08192f;
+  vBusMax = 85;
+  vShuntMax = 0.015f;
   bool result = writeRegister16(INA228_ADC_CONFIG, config);
   sleep_us(40); // startup time.
 
@@ -102,7 +106,7 @@ bool INA228::triggerAndWait(INA228_mode_t mode){
 
   auto timeout = make_timeout_time_ms(1000);
   while(absolute_time_diff_us(timeout, get_absolute_time()) < 0){
-    if(readRegister16(INA228_DIAG_ALERT) & INA228_BIT_CNVR){
+    if(readRegister16(INA228_DIAG_ALERT) & INA228_BIT_CNVRF){
       return true;
     }
   }

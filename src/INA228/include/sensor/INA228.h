@@ -146,7 +146,7 @@ class INA228
 	INA228();
 
 	bool begin(i2c_inst_t* i2c, uint8_t address = INA228_ADDRESS);
-	bool configure(INA228_averages_t avg = INA228_AVERAGES_1, INA228_busConvTime_t busConvTime = INA228_BUS_CONV_TIME_1052US, INA228_shuntConvTime_t shuntConvTime = INA228_SHUNT_CONV_TIME_1052US, INA228_mode_t mode = INA228_MODE_SHUNT_BUS_CONT);
+	bool configure(INA228_averages_t avg = INA228_AVERAGES_1, INA228_busConvTime_t busConvTime = INA228_BUS_CONV_TIME_1052US, INA228_shuntConvTime_t shuntConvTime = INA228_SHUNT_CONV_TIME_1052US, INA228_mode_t mode = INA228_MODE_SHUNT_BUS_CONT, bool range = false);
 	bool calibrate(float rShuntValue = 0.1, float iMaxCurrentExcepted = 2);
 
   bool powerUp();
