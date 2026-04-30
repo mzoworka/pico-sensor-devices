@@ -174,19 +174,19 @@ float INA228::getMaxPower(void)
 
 float INA228::readBusPower(void)
 {
-    return (readRegister16(INA228_POWER) * powerLSB);
+    return (readRegister24(INA228_POWER) * powerLSB);
 }
 
 float INA228::readShuntCurrent(void)
 {
-    return (readRegister16(INA228_CURRENT) * currentLSB);
+    return (readRegister24(INA228_CURRENT) * currentLSB);
 }
 
 float INA228::readShuntVoltage(void)
 {
     float voltage;
 
-    voltage = readRegister16(INA228_SHUNT_VOLTAGE);
+    voltage = readRegister24(INA228_SHUNT_VOLTAGE);
 
     if (config_range)
     {
@@ -200,7 +200,7 @@ float INA228::readBusVoltage(void)
 {
     int16_t voltage;
 
-    voltage = readRegister16(INA228_BUS_VOLTAGE);
+    voltage = readRegister24(INA228_BUS_VOLTAGE);
 
     return (voltage * 0.00125);
 }
