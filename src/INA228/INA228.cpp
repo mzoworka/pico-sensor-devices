@@ -28,13 +28,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #include <stdio.h>
 #include "sensor/INA228.h"
 
-
 INA228::INA228(){
 }
 
 bool INA228::begin(i2c_inst_t* i2c, uint8_t address)
 {
-  wire.begin(i2c);
+    wire.begin(i2c);
     inaAddress = address ;
     return configure(
         INA228_AVERAGES_1,
@@ -47,11 +46,11 @@ bool INA228::begin(i2c_inst_t* i2c, uint8_t address)
 
 bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, INA228_shuntConvTime_t shuntConvTime, INA228_mode_t mode, bool range)
 {
-  config_avg = avg;
-  config_busConvTime = busConvTime;
-  config_shuntConvTime = shuntConvTime;
-  config_mode = mode;
-  config_range = range;
+    config_avg = avg;
+    config_busConvTime = busConvTime;
+    config_shuntConvTime = shuntConvTime;
+    config_mode = mode;
+    config_range = range;
 
     uint16_t config = 0;
 
@@ -67,53 +66,48 @@ bool INA228::configure(INA228_averages_t avg, INA228_busConvTime_t busConvTime, 
 }
 
 bool INA228::powerUp(){
-  bool result = configure(config_avg, config_busConvTime, config_shuntConvTime, config_mode, false);
-  sleep_us(40); // startup time.
-  return result;
+    bool result = configure(config_avg, config_busConvTime, config_shuntConvTime, config_mode, false);
+    sleep_us(40); // startup time.
+    return result;
 }
 
 bool INA228::powerDown(){
-  uint16_t config = INA228_MODE_POWER_DOWN << 12;
-  return writeRegister16(INA228_ADC_CONFIG, config);
+    uint16_t config = INA228_MODE_POWER_DOWN << 12;
+    return writeRegister16(INA228_ADC_CONFIG, config);
 }
 
 const uint16_t averages[] = {1,4,16,64,128,256,512,1024};
 
-// Conservative to be done for all averages
-//const uint16_t wait[] = {142,206,336,595,1113,2142,4207,8346};
-
-// Minimum wait for 1 average
-const uint16_t wait[] = {0,0,0,0,500,1500,3550,7690};
-
-// Time in us per iteration to calculate average for a given measure time
-const uint16_t avgwaits[]={300,450,700,1200,1250,1300,1300,1320};
-//	usleep(total_wait+1000);
+// Minimum wait in us for 1 average
+const uint16_t wait[] = {50,84,150,280,540,1052,2074,4120};
 
 bool INA228::triggerAndWait(INA228_mode_t mode){
-  config_mode = mode;
-  uint16_t config = (mode << 12 | config_busConvTime << 9 | config_shuntConvTime << 6 | config_avg);
+    this->trigger(mode);
 
-  vBusMax = 85;
-  vShuntMax = 0.015f;
-  bool result = writeRegister16(INA228_ADC_CONFIG, config);
-  sleep_us(40); // startup time.
+	uint32_t total_wait = this->getWaitTimeUs();
+    sleep_us(total_wait);
 
-  uint8_t average = (config>>9) & 7;
-	uint8_t bus = (config>>6) & 7;
-	uint8_t shunt = (config>>3) & 7;
-	uint32_t total_wait = (wait[bus] + wait[shunt] + (average ? avgwaits[bus>shunt ? bus : shunt] : 0)) * averages[average];
-
-  sleep_us(total_wait + 1000);
-
-  auto timeout = make_timeout_time_ms(1000);
-  while(absolute_time_diff_us(timeout, get_absolute_time()) < 0){
-    if(readRegister16(INA228_DIAG_ALERT) & INA228_BIT_CNVRF){
-      return true;
+    auto timeout = make_timeout_time_ms(1000);
+    while(absolute_time_diff_us(timeout, get_absolute_time()) < 0){
+        if (this->isReady()) {
+            return true;
+        }
     }
-  }
-  return false;
+    return false;
 }
 
+
+bool INA228::trigger(INA228_mode_t mode){
+    config_mode = mode;
+    uint16_t config = (mode << 12 | config_busConvTime << 9 | config_shuntConvTime << 6 | config_avg);
+
+    vBusMax = 85;
+    vShuntMax = 0.015f;
+    bool result = writeRegister16(INA228_ADC_CONFIG, config);
+    sleep_us(40); // startup time.
+
+    return result;
+}
 
 bool INA228::calibrate(float rShuntValue, float iMaxCurrentExcepted)
 {
@@ -130,7 +124,7 @@ bool INA228::calibrate(float rShuntValue, float iMaxCurrentExcepted)
 
     powerLSB = currentLSB * 32;
 
-    calibrationValue = (uint16_t)13107.2 * 1000000 * currentLSB * rShunt;
+    calibrationValue = (uint16_t)13107.2 * 1000000.0 * currentLSB * rShunt;
 
     return writeRegister16(INA228_SHUNT_CAL, calibrationValue);
 }
@@ -172,6 +166,18 @@ float INA228::getMaxPower(void)
     return (getMaxCurrent() * vBusMax);
 }
 
+uint32_t INA228::getWaitTimeUs(void)
+{
+    uint16_t config = readRegister16(INA228_ADC_CONFIG);
+    uint8_t average = config & 7;
+	uint8_t bus = (config>>9) & 7;
+	uint8_t shunt = (config>>6) & 7;
+    uint8_t temp = (config>>3) & 7;
+	uint32_t total_wait = (wait[bus] + wait[shunt] + wait[temp]) * averages[average];
+
+    return total_wait;
+}
+
 float INA228::readBusPower(void)
 {
     return (readRegister24(INA228_POWER) * powerLSB);
@@ -182,11 +188,12 @@ float INA228::readShuntCurrent(void)
     return (readRegister24(INA228_CURRENT) * currentLSB);
 }
 
+
 float INA228::readShuntVoltage(void)
 {
     float voltage;
 
-    voltage = readRegister24(INA228_SHUNT_VOLTAGE);
+    voltage = readRegister24(INA228_SHUNT_VOLTAGE) >> 4;
 
     if (config_range)
     {
@@ -196,13 +203,14 @@ float INA228::readShuntVoltage(void)
     }
 }
 
+
 float INA228::readBusVoltage(void)
 {
-    int16_t voltage;
+    float voltage;
 
-    voltage = readRegister24(INA228_BUS_VOLTAGE);
+    voltage = readRegister24(INA228_BUS_VOLTAGE) >> 4;
 
-    return (voltage * 0.00125);
+    return (voltage * 0.0001953125);
 }
 
 INA228_averages_t INA228::getAverages(void)
@@ -345,6 +353,11 @@ bool INA228::isAlert(void)
     return ((getMaskEnable() & INA228_BIT_SLOWALERT) == INA228_BIT_SLOWALERT);
 }
 
+bool INA228::isReady(void)
+{
+    return ((getMaskEnable() & INA228_BIT_CNVRF) == INA228_BIT_CNVRF);
+}
+
 int16_t INA228::readRegister16(uint8_t reg)
 {
     int16_t value;
@@ -386,7 +399,12 @@ int32_t INA228::readRegister24(uint8_t reg)
     uint8_t val1 = wire.read();
     uint8_t val2 = wire.read();
     uint8_t val3 = wire.read();
-    value = val1 << 16 | val2 << 8 | val3;
+    value = (val1 << 16) | (val2 << 8) | val3;
+
+    if (value & (1 << 23)) {
+        value |= 0xFF000000;
+    }
+
 
     return value;
 }

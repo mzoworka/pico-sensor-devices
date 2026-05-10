@@ -149,9 +149,10 @@ class INA228
 	bool configure(INA228_averages_t avg = INA228_AVERAGES_1, INA228_busConvTime_t busConvTime = INA228_BUS_CONV_TIME_1052US, INA228_shuntConvTime_t shuntConvTime = INA228_SHUNT_CONV_TIME_1052US, INA228_mode_t mode = INA228_MODE_SHUNT_BUS_CONT, bool range = false);
 	bool calibrate(float rShuntValue = 0.1, float iMaxCurrentExcepted = 2);
 
-  bool powerUp();
-  bool powerDown();
-  bool triggerAndWait(INA228_mode_t mode);
+    bool powerUp();
+    bool powerDown();
+    bool triggerAndWait(INA228_mode_t mode);
+    bool trigger(INA228_mode_t mode);
 
 	INA228_averages_t getAverages(void);
 	INA228_busConvTime_t getBusConversionTime(void);
@@ -174,6 +175,7 @@ class INA228
 
 	bool isMathOverflow(void);
 	bool isAlert(void);
+    bool isReady(void);
 
 	float readShuntCurrent(void);
 	float readShuntVoltage(void);
@@ -184,6 +186,7 @@ class INA228
 	float getMaxCurrent(void);
 	float getMaxShuntVoltage(void);
 	float getMaxPower(void);
+    uint32_t getWaitTimeUs(void);
 
 private:
   Wire wire;
